@@ -238,6 +238,11 @@ function updateTeamGrid() {
   const container = document.getElementById('reg-teams-grid');
   if (!container || !allTeams.length) return;
 
+  // Spara vilka lag som är ikryssade just nu — så de återställs efter omritning
+  const checkedIds = new Set(
+    [...document.querySelectorAll('.reg-team-cb:checked:not(:disabled)')].map(c => Number(c.value))
+  );
+
   const isKnockout = currentBetType === 'knockout';
   const visibleTeams = isKnockout
     ? allTeams.filter(t => t.advanced_to_knockouts && !t.eliminated)
@@ -269,6 +274,11 @@ function updateTeamGrid() {
           </label>`;
       }).join('')}
     `).join('');
+
+  // Återställ ikryssade lag efter omritning
+  document.querySelectorAll('.reg-team-cb:not(:disabled)').forEach(cb => {
+    if (checkedIds.has(Number(cb.value))) cb.checked = true;
+  });
 
   updateTotal();
 }
