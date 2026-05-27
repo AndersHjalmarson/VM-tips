@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin – VM-poolen 2026</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+<div id="login-overlay">
+  <div class="login-box">
+    <div style="font-size:48px;margin-bottom:12px">⚙️</div>
+    <h2>Admin-panel</h2>
+    <p>Ange adminkod för att fortsätta</p>
+    <div class="form-group">
+      <input type="password" id="login-password" placeholder="Adminkod" autocomplete="off">
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Logga in</button>
+    <div id="login-error" class="alert alert-error hidden" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<header class="header">
+  <span class="header-trophy">⚽</span>
+  <h1>VM-POOLEN 2026 – Admin</h1>
+  <nav class="header-nav">
+    <a href="/" class="btn btn-secondary btn-sm">← Tillbaka</a>
+    <button class="btn btn-secondary btn-sm" onclick="logout()">Logga ut</button>
+  </nav>
+</header>
+
+<div class="admin-layout">
+  <nav class="admin-sidebar">
+    <h3>Meny</h3>
+    <button class="sidebar-btn active" onclick="showPanel('players')">👤 Spelare</button>
+    <button class="sidebar-btn" onclick="showPanel('bets')">💰 Satsningar</button>
+    <button class="sidebar-btn" onclick="showPanel('registration')">🔒 Registrering</button>
+    <button class="sidebar-btn" onclick="showPanel('group-results')">📊 Gruppresultat</button>
+    <button class="sidebar-btn" onclick="showPanel('matches')">⚽ Slutspelsmatcher</button>
+    <div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border);margin-top:16px">
+      <button class="sidebar-btn" onclick="showPanel('reset')" style="color:#f87171">⚠ Nollställ</button>
+    </div>
+  </nav>
+
+  <div class="admin-content">
+
+    <!-- Panel: Spelare -->
+    <div id="panel-players" class="admin-panel active">
+      <h2>Spelare</h2>
+      <div style="display:flex;gap:12px;margin-bottom:20px;align-items:flex-end">
+        <div class="form-group" style="flex:1;margin:0">
+          <label>Namn</label>
+          <input type="text" id="player-name-input" placeholder="Spelarens namn" autocomplete="off">
+        </div>
+        <button class="btn btn-primary" onclick="addPlayer()">+ Lägg till</button>
+      </div>
+      <div id="players-alert"></div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Namn</th><th>Registrerad</th><th></th></tr>
+        </thead>
+        <tbody id="players-table-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Panel: Satsningar -->
+    <div id="panel-bets" class="admin-panel">
+      <h2>Satsningar</h2>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px">
+        <h4 style="margin-bottom:12px;font-size:14px">Registrera satsning(ar)</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Spelare</label>
+            <select id="bet-player-select"></select>
+          </div>
+          <div class="form-group">
+            <label>Typ</label>
+            <select id="bet-type-select" onchange="updateTeamList()">
+              <option value="initial">Initialsatsning (20 kr/lag)</option>
+              <option value="knockout">Slutspelssatsning (50 kr/lag)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Välj lag (ett eller flera)</label>
+          <div id="bet-teams-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px;max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:8px;background:var(--bg)"></div>
+        </div>
+        <button class="btn btn-primary" onclick="addBets()">💰 Registrera satsning(ar)</button>
+      </div>
+      <div id="bets-alert"></div>
+      <table class="data-table">
+        <thead>
+          <tr><th>Spelare</th><th>Lag</th><th>Grupp</th><th>Typ</th><th>Original</th><th>Aktuellt</th><th></th></tr>
+        </thead>
+        <tbody id="bets-table-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Panel: Registrering -->
+    <div id="panel-registration" class="admin-panel">
+      <h2>Registreringsinställningar</h2>
+      <p style="color:var(--text3);margin-bottom:20px;font-size:13px">
+        Stäng satsningar när anmälningstiden löpt ut. Stängda satsningar går inte att lägga via publika sidan — admin kan fortfarande registrera manuellt.
+      </p>
+      <div id="registration-alert"></div>
+
+      <div style="display:grid;gap:12px;max-width:500px">
+
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;align-items:center;gap:16px">
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:14px;margin-bottom:3px">Gruppsatsningar</div>
+            <div style="font-size:12px;color:var(--text3)">20 kr/lag — initialsatsning i gruppspelet</div>
+          </div>
+          <div id="group-bets-status" style="font-size:12px;font-weight:700;margin-right:8px"></div>
+          <button id="group-bets-btn" class="btn btn-sm" onclick="toggleBets('group')"></button>
+        </div>
+
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;align-items:center;gap:16px">
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:14px;margin-bottom:3px">Slutspelssatsningar</div>
+            <div style="font-size:12px;color:var(--text3)">50 kr/lag — extrabelopp för lag i slutspelet</div>
+          </div>
+          <div id="knockout-bets-status" style="font-size:12px;font-weight:700;margin-right:8px"></div>
+          <button id="knockout-bets-btn" class="btn btn-sm" onclick="toggleBets('knockout')"></button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Panel: Gruppresultat -->
+    <div id="panel-group-results" class="admin-panel">
+      <h2>Gruppresultat</h2>
+      <p style="color:var(--text3);margin-bottom:16px;font-size:13px">
+        Markera vilka lag som gick vidare från varje grupp (normalt 2 lag, ibland 3 för de bästa tredjeplatsen). När du klickar "Behandla" omfördelas pengarna automatiskt.
+      </p>
+      <div id="groups-result-alert"></div>
+      <div id="groups-result-container"></div>
+    </div>
+
+    <!-- Panel: Slutspelsmatcher -->
+    <div id="panel-matches" class="admin-panel">
+      <h2>Slutspelsmatcher</h2>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:20px">
+        <h4 style="margin-bottom:12px;font-size:14px">Skapa ny match</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Lag 1</label>
+            <select id="match-team1"></select>
+          </div>
+          <div class="form-group">
+            <label>Lag 2</label>
+            <select id="match-team2"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Omgång</label>
+          <select id="match-round">
+            <option value="r32">Sextondelsfinaler</option>
+            <option value="r16">Åttondelsfinaler</option>
+            <option value="qf">Kvartsfinaler</option>
+            <option value="sf">Semifinaler</option>
+            <option value="bronze">Bronsmatch</option>
+            <option value="final">Final</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="createMatch()">+ Skapa match</button>
+      </div>
+      <div id="matches-alert"></div>
+
+      <h3 style="font-size:15px;margin-bottom:12px">Registrerade matcher</h3>
+      <div id="matches-admin-list"></div>
+    </div>
+
+    <!-- Panel: Nollställ -->
+    <div id="panel-reset" class="admin-panel">
+      <h2>Nollställ turneringsresultat</h2>
+      <div class="alert alert-error" style="margin-bottom:20px">
+        <strong>OBS!</strong> Detta återställer alla pengar till originalsatsningarna och tar bort alla grupprocessningar och slutspelsmatcher. Spelare och satsningar behålls. Åtgärden kan inte ångras.
+      </div>
+      <p style="color:var(--text2);margin-bottom:20px;font-size:14px">
+        Använd detta om du vill testa om, eller om ett resultat matades in fel.
+      </p>
+      <div id="reset-alert"></div>
+      <button class="btn btn-danger" style="font-size:15px;padding:12px 24px" onclick="doReset()">
+        ⚠ Nollställ alla turneringsresultat
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>

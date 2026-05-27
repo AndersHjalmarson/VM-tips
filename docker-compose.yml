@@ -1,0 +1,13 @@
+services:
+  vm-poolen:
+    build: .
+    container_name: vm-poolen-2026
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=3000
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-vm2026}
+      - DB_PATH=/app/data/vmpool.db

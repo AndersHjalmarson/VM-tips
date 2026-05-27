@@ -1,0 +1,12 @@
+{
+  "name": "vm-poolen-2026",
+  "version": "1.0.0",
+  "description": "Fotbolls-VM 2026 - Satsningspool",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --experimental-sqlite server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

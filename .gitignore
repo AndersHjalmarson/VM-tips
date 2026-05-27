@@ -1,0 +1,10 @@
+node_modules/
+data/
+.env
+*.db
+*.db-shm
+*.db-wal
+out.txt
+err.txt
+start_out.txt
+start_err.txt

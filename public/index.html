@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VM-poolen 2026 ⚽</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+<header class="header">
+  <span class="header-trophy">⚽</span>
+  <h1>VM-POOLEN 2026</h1>
+  <nav class="header-nav">
+    <a href="/admin" class="btn btn-secondary btn-sm">⚙ Admin</a>
+  </nav>
+</header>
+
+<main class="main">
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="register">Anmäl dig</button>
+    <button class="tab-btn" data-tab="groups">Ställning</button>
+    <button class="tab-btn" data-tab="players">Per spelare</button>
+    <button class="tab-btn" data-tab="leaderboard">Topplistan</button>
+    <button class="tab-btn" data-tab="matches">Matcher</button>
+  </div>
+
+  <!-- Tab: Anmäl dig -->
+  <div id="tab-register" class="tab-panel active">
+
+    <!-- Välkomsttext -->
+    <div class="welcome-box">
+      <h2>Välkommen till Östgötatrafikens VM-pool 2026! ⚽</h2>
+      <p>Fotbolls-VM avgörs i USA, Kanada och Mexiko den 11 juni – 19 juli 2026. Nu kan du vara med och tävla om en gemensam pott!</p>
+
+      <details class="rules-details">
+        <summary>Så här fungerar det — klicka för att läsa reglerna</summary>
+        <div class="rules-body">
+          <div class="rule-section">
+            <h4>Gruppsatsning — 20 kr per lag</h4>
+            <p>Du satsar 20 kr på ett eller flera lag i gruppspelet. Du kan satsa på hur många lag du vill — varje lag kostar 20 kr.</p>
+          </div>
+          <div class="rule-section">
+            <h4>Slutspelssatsning — 50 kr per lag</h4>
+            <p>När gruppspelet är klart kan du dessutom satsa 50 kr på varje lag som gått vidare till slutspelet.</p>
+          </div>
+          <div class="rule-section">
+            <h4>Hur rör sig pengarna?</h4>
+            <ul>
+              <li><strong>Gruppspelet:</strong> Lag som slås ut — deras pengar fördelas jämnt bland spelarna som satsat på de vidare lagen i samma grupp.</li>
+              <li><strong>Sextondels–Kvartsfinaler:</strong> Förlorarlagets pengar går till de som satsat på vinnarlaget.</li>
+              <li><strong>Semifinaler:</strong> 75 % av förlorarlagets pengar går till vinnarlaget — men 25 % följer med till bronsmatchen!</li>
+              <li><strong>Bronsmatchen:</strong> Alla pengar som följt med (de 25 % från semifinalerna) fördelas till de som satsat på bronsmedaljören.</li>
+              <li><strong>Finalen:</strong> Alla pengar slås ihop. De som satsat på vinnaren får dubbelt så mycket som de som satsat på förloraren.</li>
+            </ul>
+          </div>
+          <div class="rule-section">
+            <h4>Betalning</h4>
+            <p>Swisha ditt totalbelopp till <strong>Anders Hjalmarson, 0708-883225</strong>. Du ser vad du ska betala direkt efter att du registrerat dina satsningar.</p>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- Taktiktips -->
+    <details class="tactics-details">
+      <summary>💡 Taktiktips — så kan du tänka innan du väljer lag</summary>
+      <div class="tactics-grid">
+
+        <div class="tactic-card">
+          <div class="tactic-icon">🎯</div>
+          <h4>Fånga favoriternas pengar</h4>
+          <p>Alla satsar på Brasilien, Argentina och Frankrike. Om du istället plockar upp deras gruppmotståndare som faktiskt tar sig vidare — fångar du in alla de pengarna. Hög risk, men potentiellt stor utdelning redan efter gruppspelet.</p>
+        </div>
+
+        <div class="tactic-card">
+          <div class="tactic-icon">🛡️</div>
+          <h4>Den trygga gruppstrategin</h4>
+          <p>Satsa på de två lagen i varje grupp som du tror tar sig vidare. Du missar risken att bli av med dina 20 kr direkt, och pengarna från de utslagnas satsningar hamnar hos dig — utan att du ens behöver göra rätt på slutspelet.</p>
+        </div>
+
+        <div class="tactic-card">
+          <div class="tactic-icon">🇸🇪</div>
+          <h4>Sverige-effekten</h4>
+          <p>Sverige är med i grupp F. Många kollegor satsar säkert på Sverige — vilket betyder att om Sverige åker ut i gruppen, fördelas alla de pengarna på de som satsat på de vidare lagen i grupp F. Satsa på Sveriges gruppmotståndare och hoppas på det bästa. Eller satsa på Sverige och hoppas att ni delar glädje och vinst.</p>
+        </div>
+
+        <div class="tactic-card">
+          <div class="tactic-icon">⚖️</div>
+          <h4>Bred portfölj eller smalnad fokus?</h4>
+          <p>Sprider du satsningarna över många lag i många grupper ökar chansen att ha något kvar hela vägen — men du delar också eventuella omfördelningar med fler. Satsar du smalt på ett eller två lag och de går långt kan utdelningen bli desto större. Det är ett klassiskt risk/reward-val.</p>
+        </div>
+
+        <div class="tactic-card">
+          <div class="tactic-icon">🥉</div>
+          <h4>Bronsmatchen — den dolda jackpotten</h4>
+          <p>25 % av pengarna på semifinalförlörarna följer med till bronsmatchen. Det kan bli en rejäl pott. Om ditt lag förlorar en semifinal är det inte kört — vinner de sedan bronsmatchen tar du hem hela bronspotten. Tänk på det när du väljer slutspelssatsningar.</p>
+        </div>
+
+        <div class="tactic-card">
+          <div class="tactic-icon">🏆</div>
+          <h4>Finalen — hedga dina insatser</h4>
+          <p>I finalen slås all kvarvarande pott ihop och vinnarsatsning ger dubbelt mot förlorarsatsning. Om du har gjort slutspelssatsningar på båda finallagen är du garanterad utdelning oavsett vinnare — frågan är bara hur mycket. Inte dumt om du vill säkra hem något.</p>
+        </div>
+
+        <div class="tactic-card">
+          <div class="tactic-icon">⏱️</div>
+          <h4>Vänta med slutspelssatsningen</h4>
+          <p>Slutspelssatsningen (50 kr/lag) öppnar först efter gruppspelet. Då vet du exakt vilka lag som är kvar och hur mycket som satsats på dem. Lag med lite satsningar från andra ger dig en större relativ andel vid nästa omfördelning. Titta på ställningen och välj klokt.</p>
+        </div>
+
+        <div class="tactic-card">
+          <div class="tactic-icon">🚫</div>
+          <h4>Satsa inte på alla lag i samma grupp</h4>
+          <p>Om du satsar på samtliga fyra lag i en grupp shufflas pengarna bara runt mellan dina egna satsningar — du riskerar ingenting men vinner heller ingenting på omfördelningen. Välj sida och stå för det.</p>
+        </div>
+
+      </div>
+    </details>
+
+    <!-- Registreringsformulär -->
+    <div id="reg-form-section">
+      <div class="reg-card">
+        <h3>Registrera dina satsningar</h3>
+
+        <div class="form-group">
+          <label>Ditt namn</label>
+          <input type="text" id="reg-name" placeholder="Förnamn Efternamn" autocomplete="off"
+                 oninput="clearRegResult()">
+        </div>
+
+        <div id="reg-type-toggle" style="display:none">
+          <div class="form-group">
+            <label>Typ av satsning</label>
+            <div style="display:flex;gap:8px">
+              <button class="bet-type-btn active" data-type="initial" onclick="setBetType('initial')">
+                Gruppsatsning <span class="bet-type-amount">20 kr/lag</span>
+              </button>
+              <button class="bet-type-btn" id="knockout-btn" data-type="knockout" onclick="setBetType('knockout')" style="display:none">
+                Slutspelssatsning <span class="bet-type-amount">50 kr/lag</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Välj lag att satsa på</label>
+          <div id="reg-teams-grid" class="reg-teams-grid">
+            <p style="color:var(--text3)">Laddar lag...</p>
+          </div>
+        </div>
+
+        <div class="reg-total-bar">
+          <span>Valda lag: <strong id="reg-count">0</strong></span>
+          <span>Totalt: <strong id="reg-total" style="color:var(--accent)">0 kr</strong></span>
+        </div>
+
+        <button class="btn btn-primary" style="width:100%;font-size:15px;padding:12px" onclick="submitRegistration()">
+          Registrera satsningar
+        </button>
+
+        <div id="reg-alert"></div>
+      </div>
+
+      <!-- Lookup: se befintliga satsningar -->
+      <div class="lookup-card">
+        <p style="color:var(--text3);font-size:13px;margin-bottom:8px">Har du redan registrerat dig och vill se dina satsningar?</p>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="lookup-name" placeholder="Ditt namn" style="flex:1;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px">
+          <button class="btn btn-secondary" onclick="lookupPlayer()">Visa</button>
+        </div>
+        <div id="lookup-result" style="margin-top:12px"></div>
+      </div>
+    </div>
+
+    <!-- Swish-bekräftelse (visas efter registrering) -->
+    <div id="swish-confirmation" style="display:none">
+      <div class="swish-card">
+        <div class="swish-check">✓</div>
+        <h3>Satsning registrerad!</h3>
+        <p id="swish-teams-text" style="color:var(--text2);margin-bottom:20px;font-size:14px"></p>
+
+        <div class="swish-amount-box">
+          <div class="swish-label">Swisha detta belopp till</div>
+          <div class="swish-name">Anders Hjalmarson</div>
+          <div class="swish-number" onclick="copyNumber()">
+            <span id="swish-number-text">0708-883225</span>
+            <span class="copy-hint">Tryck för att kopiera</span>
+          </div>
+          <div class="swish-big-amount" id="swish-amount-display">— kr</div>
+          <div class="swish-message-hint">Meddelande: <span id="swish-msg"></span></div>
+        </div>
+
+        <div id="swish-extra-msg" style="margin-top:12px;font-size:13px;color:var(--text3)"></div>
+
+        <button class="btn btn-secondary" style="margin-top:20px" onclick="resetRegistration()">
+          Registrera en till person
+        </button>
+        <button class="btn btn-primary" style="margin-top:8px" onclick="showTab('groups')">
+          Se aktuell ställning
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Tab: Ställning -->
+  <div id="tab-groups" class="tab-panel">
+    <div id="stats-bar" class="stats-bar" style="margin-bottom:20px">
+      <div class="stat-card"><div class="value" id="stat-total">—</div><div class="label">Total pott</div></div>
+      <div class="stat-card"><div class="value" id="stat-players">—</div><div class="label">Spelare</div></div>
+      <div class="stat-card"><div class="value" id="stat-bets">—</div><div class="label">Satsningar</div></div>
+      <div class="stat-card"><div class="value" id="stat-teams">—</div><div class="label">Lag kvar</div></div>
+    </div>
+    <div class="refresh-info">Uppdateras var 30:e sekund. Senast: <span id="last-refresh">—</span></div>
+    <div id="groups-container" class="groups-grid"></div>
+  </div>
+
+  <!-- Tab: Per spelare -->
+  <div id="tab-players" class="tab-panel">
+    <div id="players-container" class="players-grid"></div>
+  </div>
+
+  <!-- Tab: Topplistan -->
+  <div id="tab-leaderboard" class="tab-panel">
+    <div id="leaderboard-container" class="leaderboard"></div>
+  </div>
+
+  <!-- Tab: Matcher -->
+  <div id="tab-matches" class="tab-panel">
+    <div id="matches-container"></div>
+  </div>
+
+</main>
+
+<footer style="text-align:center;padding:20px;color:var(--text3);font-size:12px;border-top:1px solid var(--border);margin-top:32px">
+  Skapad med hjälp av <a href="https://claude.ai" target="_blank" style="color:var(--accent);text-decoration:none">Claude</a> &mdash; Anthropics AI-assistent ✦
+</footer>
+
+<script src="/js/main.js"></script>
+</body>
+</html>
