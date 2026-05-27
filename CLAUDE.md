@@ -76,12 +76,13 @@ vm-poolen/
 
 ### Omfördelningslogik (implementerad i `src/redistribution.js`)
 
-**Gruppspel** (`processGroupResults`):
-- Utslagna lags `current_amount` → nollställs
-- Totalen fördelas **jämnt per spelare** (ej per satsning) på spelare med
-  satsningar på vidare-lag i samma grupp
+**Gruppspel** (`processPartialGroupResults`):
+- Stöder **gradvis registrering**: admin kan markera ett lag i taget som Vidare/Utslaget
+- Utslagna lags `current_amount` → nollställs och läggs i en **grupp-pool** (`group_A_pending` i settings)
+- Poolen fördelas **jämnt per spelare** (ej per satsning) på spelare med satsningar på vidare-lag
+  *först när alla fyra lag i gruppen har bekräftad status*
 - Om en spelare har flera vidare-lag delas deras andel lika mellan deras satsningar
-- Förhindrar dubbel-behandling via `settings`-tabellen (`group_A_processed` etc.)
+- Idempotent: om ett lag redan är markerat i DB ignoreras det vid ny körning
 
 **Sextondels/Åttondels/Kvartsfinaler** (`_processRegularKnockout`):
 - Förlorarlagets `current_amount` → fördelas **proportionellt** till vinnarlaget
@@ -121,7 +122,7 @@ bets      (id, player_id, team_id, original_amount, current_amount,
 matches   (id, round['r32'|'r16'|'qf'|'sf'|'bronze'|'final'],
            team1_id, team2_id, winner_id, played_at, created_at)
 settings  (key, value)
-           -- 'group_A_processed' .. 'group_L_processed' → 'true'
+           -- 'group_A_pending' .. 'group_L_pending' → väntande pool-belopp (sträng)
            -- 'group_bets_open'   → 'true'/'false'
            -- 'knockout_bets_open' → 'true'/'false'
 ```
@@ -150,7 +151,7 @@ settings  (key, value)
 | POST | `/admin/api/bets/bulk` | Lägg till flera satsningar åt en spelare |
 | DELETE | `/admin/api/bets/:id` | Ta bort satsning |
 | GET | `/admin/api/groups/status` | Vilka grupper är behandlade |
-| POST | `/admin/api/groups/:group/results` | Behandla gruppresultat `{advanced_team_ids[]}` |
+| POST | `/admin/api/groups/:group/results` | Gradvis gruppresultat `{advanced_team_ids[], eliminated_team_ids[]}` |
 | GET/POST | `/admin/api/teams` | Lista lag / hämta för dropdown |
 | POST | `/admin/api/matches` | Skapa slutspelsmatch |
 | POST | `/admin/api/matches/:id/result` | Registrera matchresultat `{winner_id}` |

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { db, withTransaction } = require('../database');
-const { processGroupResults, processKnockoutMatch } = require('../redistribution');
+const { processPartialGroupResults, processKnockoutMatch } = require('../redistribution');
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'vm2026';
 
@@ -132,39 +132,50 @@ router.delete('/bets/:id', requireAuth, (req, res) => {
 
 // --- Gruppresultat ---
 
-// Markera vilka lag som gick vidare från en grupp
+// Gradvis registrering: markera lag som vidare eller utslagna (kan anropas flera gånger)
 router.post('/groups/:group/results', requireAuth, (req, res) => {
   const { group } = req.params;
-  const { advanced_team_ids } = req.body; // array av team-id
-
-  if (!Array.isArray(advanced_team_ids) || advanced_team_ids.length < 2) {
-    return res.status(400).json({ error: 'Minst 2 vidare-lag krävs' });
-  }
+  const { advanced_team_ids = [], eliminated_team_ids = [] } = req.body;
 
   const validGroups = 'ABCDEFGHIJKL'.split('');
   if (!validGroups.includes(group.toUpperCase())) {
     return res.status(400).json({ error: 'Ogiltig grupp' });
   }
+  if (!Array.isArray(advanced_team_ids) || !Array.isArray(eliminated_team_ids)) {
+    return res.status(400).json({ error: 'advanced_team_ids och eliminated_team_ids måste vara arrayer' });
+  }
+  if (advanced_team_ids.length === 0 && eliminated_team_ids.length === 0) {
+    return res.status(400).json({ error: 'Minst ett lag måste bekräftas' });
+  }
 
   try {
-    const result = processGroupResults(group.toUpperCase(), advanced_team_ids.map(Number));
+    const result = processPartialGroupResults(
+      group.toUpperCase(),
+      advanced_team_ids.map(Number),
+      eliminated_team_ids.map(Number)
+    );
     res.json({ ok: true, ...result });
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 });
 
-// Status: vilka grupper är behandlade
+// Status: alla grupper med lagstatus och väntande pool
 router.get('/groups/status', requireAuth, (req, res) => {
-  const processed = db.prepare("SELECT key FROM settings WHERE key LIKE 'group_%_processed'").all();
-  const doneGroups = processed.map(r => r.key.replace('group_', '').replace('_processed', ''));
-
   const groups = 'ABCDEFGHIJKL'.split('').map(g => {
-    const teams = db.prepare(`
-      SELECT t.id, t.name, t.eliminated, t.advanced_to_knockouts
-      FROM teams t WHERE t.group_name = ?
-    `).all(g);
-    return { group: g, processed: doneGroups.includes(g), teams };
+    const teams = db.prepare(
+      'SELECT id, name, eliminated, advanced_to_knockouts FROM teams WHERE group_name = ? ORDER BY name'
+    ).all(g);
+
+    const pendingKey = `group_${g}_pending`;
+    const pendingPool = Number(
+      db.prepare('SELECT value FROM settings WHERE key = ?').get(pendingKey)?.value || 0
+    );
+
+    const confirmedCount = teams.filter(t => t.eliminated || t.advanced_to_knockouts).length;
+    const fullyResolved  = confirmedCount === 4;
+
+    return { group: g, teams, pendingPool, fullyResolved, confirmedCount };
   });
 
   res.json(groups);
@@ -258,8 +269,9 @@ router.post('/reset', requireAuth, (req, res) => {
     db.exec('UPDATE teams SET eliminated = 0, advanced_to_knockouts = 0');
     // Ta bort alla matchresultat
     db.exec('DELETE FROM matches');
-    // Ta bort alla grupprocessnings-markeringar
+    // Ta bort alla grupprocessnings-markeringar och väntande pooler
     db.exec("DELETE FROM settings WHERE key LIKE 'group_%_processed'");
+    db.exec("DELETE FROM settings WHERE key LIKE 'group_%_pending'");
   });
   res.json({ ok: true, message: 'Alla turneringsresultat nollställda' });
 });

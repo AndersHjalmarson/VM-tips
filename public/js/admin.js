@@ -9,6 +9,10 @@ let allTeams = [];
 let allPlayers = [];
 let allMatches = [];
 
+// Gruppresultat: cache från API + lokala val (innan sparning)
+let groupStatusCache = null;
+const groupSelections = {}; // { 'A': { [teamId]: 'advanced'|'eliminated'|'uncertain' } }
+
 // --- Auth ---
 
 async function doLogin() {
@@ -229,57 +233,153 @@ async function deleteBet(id) {
 // --- Gruppresultat ---
 
 async function loadGroupResults() {
-  const status = await api('/groups/status');
+  try {
+    groupStatusCache = await api('/groups/status');
+  } catch (e) {
+    showAlert('groups-result-alert', 'Kunde inte ladda gruppdata: ' + e.message, 'error');
+    return;
+  }
+  renderGroupResults();
+}
+
+function _effectiveTeamState(group, teamId, dbAdvanced, dbEliminated) {
+  const sel = groupSelections[group]?.[teamId];
+  if (sel !== undefined) return { state: sel, locked: false };
+  if (dbAdvanced)  return { state: 'advanced',  locked: true };
+  if (dbEliminated) return { state: 'eliminated', locked: true };
+  return { state: 'uncertain', locked: false };
+}
+
+function renderGroupResults() {
+  if (!groupStatusCache) return;
   const container = document.getElementById('groups-result-container');
 
-  container.innerHTML = status.map(g => {
-    if (g.processed) {
-      const advanced = g.teams.filter(t => t.advanced_to_knockouts).map(t => t.name).join(', ');
-      const eliminated = g.teams.filter(t => t.eliminated).map(t => t.name).join(', ');
-      return `
-        <div class="group-result-card">
-          <h4>Grupp ${g.group} <span class="badge processed-badge">Behandlad ✓</span></h4>
-          <p style="font-size:12px;color:var(--green)">✓ Vidare: ${advanced}</p>
-          <p style="font-size:12px;color:var(--text3)">✗ Utslagna: ${eliminated}</p>
-        </div>
-      `;
+  container.innerHTML = groupStatusCache.map(g => {
+
+    // Badge
+    let badge;
+    if (g.fullyResolved) {
+      badge = `<span class="badge processed-badge">Klar ✓</span>`;
+    } else if (g.confirmedCount > 0) {
+      badge = `<span class="badge pending-badge">${g.confirmedCount}/4 klara</span>`;
+    } else {
+      badge = `<span class="badge" style="background:var(--card2);color:var(--text3)">Inga resultat</span>`;
     }
+
+    // Väntande pool
+    const poolHtml = g.pendingPool > 0
+      ? `<div style="font-size:12px;color:var(--accent);background:var(--card2);border:1px solid var(--border);
+                     border-radius:6px;padding:8px 12px;margin-bottom:12px">
+           ⏳ Väntande pool: <strong>${fmt(g.pendingPool)}</strong> — fördelas när alla fyra lag har bekräftad status
+         </div>`
+      : '';
+
+    // En rad per lag
+    const teamsHtml = g.teams.map(t => {
+      const { state, locked } = _effectiveTeamState(g.group, t.id, t.advanced_to_knockouts, t.eliminated);
+
+      if (locked) {
+        const label = state === 'advanced' ? '✓ Vidare' : '✗ Utslaget';
+        const color = state === 'advanced' ? 'var(--green)' : 'var(--red)';
+        return `
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid var(--border)">
+            <span style="flex:1;font-size:13px">${t.name}</span>
+            <span style="font-size:12px;font-weight:700;color:${color};white-space:nowrap">${label} 🔒</span>
+          </div>`;
+      }
+
+      // 3-läges knappar
+      const btnStyle = s => {
+        if (s === state) {
+          if (s === 'advanced')  return 'background:#064e3b;color:#6ee7b7;border-color:#065f46';
+          if (s === 'eliminated') return 'background:#7f1d1d;color:#fca5a5;border-color:#991b1b';
+          return 'background:var(--card2);color:var(--text2);border-color:var(--accent)';
+        }
+        return 'background:transparent;color:var(--text3);border-color:var(--border);opacity:0.55';
+      };
+
+      return `
+        <div style="display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid var(--border)">
+          <span style="flex:1;font-size:13px">${t.name}</span>
+          <div style="display:flex;gap:2px;flex-shrink:0">
+            <button class="btn btn-sm" style="${btnStyle('advanced')}"
+              onclick="setTeamState('${g.group}',${t.id},'advanced')">✓ Vidare</button>
+            <button class="btn btn-sm" style="${btnStyle('uncertain')}"
+              onclick="setTeamState('${g.group}',${t.id},'uncertain')">? Oklart</button>
+            <button class="btn btn-sm" style="${btnStyle('eliminated')}"
+              onclick="setTeamState('${g.group}',${t.id},'eliminated')">✗ Utslaget</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Spara-knapp: visa om det finns nya (ej DB-bekräftade) val
+    const hasPending = !g.fullyResolved && g.teams.some(t => {
+      if (t.advanced_to_knockouts || t.eliminated) return false;
+      const sel = groupSelections[g.group]?.[t.id];
+      return sel === 'advanced' || sel === 'eliminated';
+    });
+
+    const saveBtn = !g.fullyResolved
+      ? `<button class="btn ${hasPending ? 'btn-primary' : 'btn-secondary'}"
+             style="margin-top:14px" onclick="processGroup('${g.group}')"
+             ${!hasPending ? 'disabled' : ''}>
+           Spara för grupp ${g.group}
+         </button>`
+      : '';
 
     return `
       <div class="group-result-card">
-        <h4>Grupp ${g.group} <span class="badge pending-badge">Väntar</span></h4>
-        <p style="font-size:12px;color:var(--text3);margin-bottom:10px">Välj de lag som gick vidare (normalt 2, ibland 3):</p>
-        <div class="team-checkboxes">
-          ${g.teams.map(t => `
-            <label class="team-checkbox-row">
-              <input type="checkbox" class="group-adv-checkbox" data-group="${g.group}" value="${t.id}">
-              <span>${t.name}</span>
-            </label>
-          `).join('')}
-        </div>
-        <button class="btn btn-success" style="margin-top:12px" onclick="processGroup('${g.group}')">
-          ✓ Behandla grupp ${g.group}
-        </button>
-      </div>
-    `;
+        <h4>Grupp ${g.group} ${badge}</h4>
+        ${poolHtml}
+        <div>${teamsHtml}</div>
+        ${saveBtn}
+      </div>`;
   }).join('');
 }
 
-async function processGroup(groupLetter) {
-  const checked = [...document.querySelectorAll(`.group-adv-checkbox[data-group="${groupLetter}"]:checked`)]
-    .map(c => Number(c.value));
+function setTeamState(group, teamId, state) {
+  if (!groupSelections[group]) groupSelections[group] = {};
+  groupSelections[group][teamId] = state;
+  renderGroupResults(); // omritning utan API-anrop
+}
 
-  if (checked.length < 2) {
-    return showAlert('groups-result-alert', 'Välj minst 2 vidare-lag', 'error');
+async function processGroup(groupLetter) {
+  const gData = groupStatusCache?.find(g => g.group === groupLetter);
+  if (!gData) return;
+
+  const sel = groupSelections[groupLetter] || {};
+  const newAdvanced   = gData.teams.filter(t => !t.advanced_to_knockouts && !t.eliminated && sel[t.id] === 'advanced').map(t => t.id);
+  const newEliminated = gData.teams.filter(t => !t.advanced_to_knockouts && !t.eliminated && sel[t.id] === 'eliminated').map(t => t.id);
+
+  if (newAdvanced.length === 0 && newEliminated.length === 0) {
+    return showAlert('groups-result-alert', 'Inga nya val att spara — markera minst ett lag', 'error');
   }
 
-  if (!confirm(`Behandla grupp ${groupLetter} med ${checked.length} vidare lag? Detta kan inte ångras.`)) return;
+  const parts = [];
+  if (newAdvanced.length)   parts.push(`${newAdvanced.length} vidare`);
+  if (newEliminated.length) parts.push(`${newEliminated.length} utslagna`);
+
+  if (!confirm(`Bekräfta för grupp ${groupLetter}: ${parts.join(', ')}?\nDetta kan inte ångras.`)) return;
 
   try {
-    const r = await api(`/groups/${groupLetter}/results`, 'POST', { advanced_team_ids: checked });
-    showAlert('groups-result-alert', `Grupp ${groupLetter} behandlad! ${fmt(r.totalRedistributed)} omfördelades till ${r.toPlayers} spelare.`);
-    loadGroupResults();
-    await loadTeams(); // Uppdatera lag-statusar
+    const r = await api(`/groups/${groupLetter}/results`, 'POST', {
+      advanced_team_ids:  newAdvanced,
+      eliminated_team_ids: newEliminated,
+    });
+
+    let msg = `Grupp ${groupLetter} uppdaterad!`;
+    if (r.fullyResolved && r.totalDistributed > 0) {
+      msg += ` 🎉 Hela gruppen klar — ${fmt(r.totalDistributed)} fördelades jämnt till spelarna.`;
+    } else {
+      if (r.newlyEliminated > 0) msg += ` ${r.newlyEliminated} lag utslaget, ${fmt(r.pendingPool)} i väntande pool.`;
+      if (r.newlyAdvanced  > 0) msg += ` ${r.newlyAdvanced} lag bekräftat vidare.`;
+      if (r.uncertainTeams > 0) msg += ` ${r.uncertainTeams} lag oklara — pool fördelas när alla är klara.`;
+    }
+
+    showAlert('groups-result-alert', msg);
+    delete groupSelections[groupLetter];
+    await loadGroupResults();
+    await loadTeams();
   } catch (e) {
     showAlert('groups-result-alert', e.message, 'error');
   }

@@ -1,64 +1,117 @@
 const { db, withTransaction } = require('./database');
 
-function processGroupResults(groupName, advancedTeamIds) {
-  const settingKey = `group_${groupName}_processed`;
-  const alreadyDone = db.prepare('SELECT value FROM settings WHERE key = ?').get(settingKey);
-  if (alreadyDone) throw new Error(`Grupp ${groupName} är redan behandlad`);
+// ── Gruppspel ─────────────────────────────────────────────────────────────────
+//
+// Stöder GRADVIS registrering: admin kan markera lag ett i taget.
+// Utslagna lags pengar läggs i en grupp-pool och fördelas INTE direkt — de
+// väntar tills alla fyra lag i gruppen har en säker status (vidare / utslaget).
+// Då fördelas hela poolen jämnt per spelare på de vidare-lagen.
+//
+// Kan anropas flera gånger med kumulativa listor.
+//
+function processPartialGroupResults(groupName, confirmedAdvancedIds, confirmedEliminatedIds) {
+  const allGroupTeams = db.prepare('SELECT * FROM teams WHERE group_name = ?').all(groupName);
 
-  const allTeams = db.prepare('SELECT id FROM teams WHERE group_name = ?').all(groupName);
-  const eliminatedIds = allTeams.map(t => t.id).filter(id => !advancedTeamIds.includes(id));
+  // Vilka är NYLIGEN bekräftade (inte redan markerade i DB)?
+  const newlyEliminated = allGroupTeams.filter(t =>
+    confirmedEliminatedIds.includes(t.id) && !t.eliminated
+  );
+  const newlyAdvanced = allGroupTeams.filter(t =>
+    confirmedAdvancedIds.includes(t.id) && !t.advanced_to_knockouts
+  );
 
-  const ph = (arr) => arr.map(() => '?').join(',');
+  // Alla bekräftade efter denna körning (DB + nya)
+  const allEliminatedIds = [
+    ...allGroupTeams.filter(t => t.eliminated).map(t => t.id),
+    ...newlyEliminated.map(t => t.id),
+  ];
+  const allAdvancedIds = [
+    ...allGroupTeams.filter(t => t.advanced_to_knockouts).map(t => t.id),
+    ...newlyAdvanced.map(t => t.id),
+  ];
 
-  const eliminatedBets = eliminatedIds.length > 0
-    ? db.prepare(`SELECT * FROM bets WHERE team_id IN (${ph(eliminatedIds)}) AND current_amount > 0`).all(...eliminatedIds)
+  const ph = arr => arr.map(() => '?').join(',');
+
+  // Hämta satsningar på nyligen utslagna lag
+  const newlyEliminatedBets = newlyEliminated.length > 0
+    ? db.prepare(`SELECT * FROM bets WHERE team_id IN (${ph(newlyEliminated.map(t => t.id))}) AND current_amount > 0`)
+        .all(...newlyEliminated.map(t => t.id))
     : [];
 
-  const totalPool = eliminatedBets.reduce((s, b) => s + b.current_amount, 0);
+  const newlyEliminatedAmount = newlyEliminatedBets.reduce((s, b) => s + b.current_amount, 0);
 
-  const advancingBets = advancedTeamIds.length > 0
-    ? db.prepare(`SELECT * FROM bets WHERE team_id IN (${ph(advancedTeamIds)})`).all(...advancedTeamIds)
-    : [];
+  // Hämta nuvarande grupp-pool
+  const pendingKey = `group_${groupName}_pending`;
+  const currentPending = Number(db.prepare('SELECT value FROM settings WHERE key = ?').get(pendingKey)?.value || 0);
+  const newPending = currentPending + newlyEliminatedAmount;
 
-  // Gruppera vidare-satsningar per spelare (jämn fördelning per spelare, inte per satsning)
-  const byPlayer = {};
-  for (const bet of advancingBets) {
-    if (!byPlayer[bet.player_id]) byPlayer[bet.player_id] = [];
-    byPlayer[bet.player_id].push(bet);
-  }
-  const uniquePlayers = Object.keys(byPlayer);
+  // Är gruppen nu helt klar? (inga lag med oklart status kvar)
+  const uncertainTeams = allGroupTeams.filter(t =>
+    !allEliminatedIds.includes(t.id) && !allAdvancedIds.includes(t.id)
+  );
+  const fullyResolved = uncertainTeams.length === 0;
 
   withTransaction(() => {
-    if (totalPool > 0 && uniquePlayers.length > 0) {
-      const perPlayer = totalPool / uniquePlayers.length;
-      for (const pid of uniquePlayers) {
-        const pBets = byPlayer[pid];
-        const perBet = perPlayer / pBets.length;
-        for (const bet of pBets) {
-          db.prepare('UPDATE bets SET current_amount = current_amount + ? WHERE id = ?').run(perBet, bet.id);
-        }
-      }
-    }
-    for (const bet of eliminatedBets) {
+    // Nollställ nyligen utslagna lags satsningar
+    for (const bet of newlyEliminatedBets) {
       db.prepare('UPDATE bets SET current_amount = 0 WHERE id = ?').run(bet.id);
     }
-    for (const id of advancedTeamIds) {
-      db.prepare('UPDATE teams SET advanced_to_knockouts = 1 WHERE id = ?').run(id);
+
+    // Uppdatera lagstatus
+    for (const team of newlyEliminated) {
+      db.prepare('UPDATE teams SET eliminated = 1 WHERE id = ?').run(team.id);
     }
-    for (const id of eliminatedIds) {
-      db.prepare('UPDATE teams SET eliminated = 1 WHERE id = ?').run(id);
+    for (const team of newlyAdvanced) {
+      db.prepare('UPDATE teams SET advanced_to_knockouts = 1 WHERE id = ?').run(team.id);
     }
-    db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(settingKey, 'true');
+
+    if (fullyResolved && newPending > 0) {
+      // Alla lag klara → fördela hela pool-beloppet till vidare-lagen
+      const advancingBets = allAdvancedIds.length > 0
+        ? db.prepare(`SELECT * FROM bets WHERE team_id IN (${ph(allAdvancedIds)})`).all(...allAdvancedIds)
+        : [];
+
+      // Jämn fördelning per spelare
+      const byPlayer = {};
+      for (const bet of advancingBets) {
+        if (!byPlayer[bet.player_id]) byPlayer[bet.player_id] = [];
+        byPlayer[bet.player_id].push(bet);
+      }
+      const uniquePlayers = Object.keys(byPlayer);
+
+      if (uniquePlayers.length > 0) {
+        const perPlayer = newPending / uniquePlayers.length;
+        for (const pid of uniquePlayers) {
+          const pBets = byPlayer[pid];
+          const perBet = perPlayer / pBets.length;
+          for (const bet of pBets) {
+            db.prepare('UPDATE bets SET current_amount = current_amount + ? WHERE id = ?').run(perBet, bet.id);
+          }
+        }
+      }
+
+      // Rensa grupp-poolen
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(pendingKey, '0');
+    } else {
+      // Uppdatera grupp-poolen med nya utslagna pengar
+      db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(pendingKey, String(newPending));
+    }
   });
 
   return {
     group: groupName,
-    totalRedistributed: totalPool,
-    toPlayers: uniquePlayers.length,
-    advancedTeams: advancedTeamIds.length,
-    eliminatedTeams: eliminatedIds.length,
+    newlyEliminated: newlyEliminated.length,
+    newlyAdvanced: newlyAdvanced.length,
+    pendingPool: fullyResolved ? 0 : newPending,
+    totalDistributed: fullyResolved ? newPending : 0,
+    fullyResolved,
+    uncertainTeams: uncertainTeams.length,
+    allAdvancedIds,
+    allEliminatedIds,
   };
 }
+
+// ── Knockout ──────────────────────────────────────────────────────────────────
 
 function processKnockoutMatch(matchId, winnerId, loserId, round) {
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(matchId);
@@ -66,7 +119,7 @@ function processKnockoutMatch(matchId, winnerId, loserId, round) {
   if (match.winner_id) throw new Error('Matchresultatet är redan registrerat');
 
   withTransaction(() => {
-    if (round === 'final')  _processFinal(winnerId, loserId);
+    if (round === 'final')       _processFinal(winnerId, loserId);
     else if (round === 'bronze') _processBronze(winnerId, loserId);
     else if (round === 'sf')     _processSemifinal(winnerId, loserId);
     else                         _processRegularKnockout(winnerId, loserId);
@@ -106,7 +159,6 @@ function _processSemifinal(winnerId, loserId) {
       db.prepare('UPDATE bets SET current_amount = current_amount + ? WHERE id = ?').run(share, bet.id);
     }
   }
-  // 25% stannar kvar på förlorarens satsningar — pengarna följer med till bronsmatchen
   for (const bet of loserBets) {
     db.prepare('UPDATE bets SET current_amount = current_amount * 0.25 WHERE id = ?').run(bet.id);
   }
@@ -146,9 +198,8 @@ function _processFinal(winnerId, loserId) {
 
   const winnerPlayers = Object.keys(winnerByPlayer);
   const loserPlayers  = Object.keys(loserByPlayer);
-  // Vinnarsatsning = 2 andelar per spelare, förlorarsatsning = 1 andel
-  const totalShares = winnerPlayers.length * 2 + loserPlayers.length;
-  const shareValue  = totalPool / (totalShares || 1);
+  const totalShares   = winnerPlayers.length * 2 + loserPlayers.length;
+  const shareValue    = totalPool / (totalShares || 1);
 
   for (const pid of winnerPlayers) {
     const bets = winnerByPlayer[pid];
@@ -166,4 +217,4 @@ function _processFinal(winnerId, loserId) {
   }
 }
 
-module.exports = { processGroupResults, processKnockoutMatch };
+module.exports = { processPartialGroupResults, processKnockoutMatch };
