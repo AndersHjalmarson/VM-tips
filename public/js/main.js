@@ -47,8 +47,8 @@ async function fetchAll() {
     groupsData = groups;
     playersData = players;
 
-    // Bygg platt lag-lista
-    allTeams = Object.values(groups).flat();
+    // Bygg platt lag-lista (stöder både gammalt array-format och nytt {teams, pendingPool})
+    allTeams = Object.values(groups).flatMap(g => Array.isArray(g) ? g : (g.teams || []));
 
     renderStats(summary);
     renderGroups(groups);
@@ -89,11 +89,25 @@ function renderGroups(groups) {
   container.innerHTML = '';
 
   for (const letter of 'ABCDEFGHIJKL'.split('')) {
-    const teams = groups[letter] || [];
+    const rawGroup = groups[letter];
+    if (!rawGroup) continue;
+
+    // Stöder både gammalt array-format och nytt {teams, pendingPool}
+    const teams      = Array.isArray(rawGroup) ? rawGroup : (rawGroup.teams || []);
+    const pendingPool = Array.isArray(rawGroup) ? 0 : (rawGroup.pendingPool || 0);
     if (!teams.length) continue;
 
-    const totalPot = teams.reduce((s, t) => s + (t.current_pot || 0), 0);
-    const processed = teams.every(t => t.eliminated || t.advanced_to_knockouts);
+    const activePot  = teams.reduce((s, t) => s + (t.current_pot || 0), 0);
+    const totalPot   = activePot + pendingPool;
+    const processed  = teams.every(t => t.eliminated || t.advanced_to_knockouts);
+
+    // Visa väntande pool separat i rubriken om det finns
+    let potLine;
+    if (pendingPool > 0) {
+      potLine = `${fmt(activePot)} aktiva satsningar · <span style="color:var(--accent)">+${fmt(pendingPool)} väntande pool</span>`;
+    } else {
+      potLine = `${fmt(totalPot)} i pott${processed ? ' · Avslutad' : ''}`;
+    }
 
     const card = document.createElement('div');
     card.className = 'group-card';
@@ -102,21 +116,21 @@ function renderGroups(groups) {
         <div class="group-letter">${letter}</div>
         <div class="group-header-info">
           <h3>Grupp ${letter}</h3>
-          <p>${fmt(totalPot)} i pott${processed ? ' · Avslutad' : ''}</p>
+          <p>${potLine}</p>
         </div>
       </div>
       ${teams.map(t => {
-        let statusHtml = t.eliminated
+        const statusHtml = t.eliminated
           ? '<span class="team-status status-eliminated">Utslaget</span>'
           : t.advanced_to_knockouts
-            ? '<span class="team-status status-advanced">Vidare</span>'
+            ? '<span class="team-status status-advanced">Vidare ✓</span>'
             : '<span class="team-status status-active">Aktiv</span>';
         return `
           <div class="team-row${t.eliminated ? ' eliminated' : ''}">
             <span class="team-name">${t.name}</span>
             ${statusHtml}
             <span class="team-bettors" title="${t.num_bettors} satsare">👤${t.num_bettors}</span>
-            <span class="team-pot${t.current_pot === 0 ? ' zero' : ''}">${fmt(t.current_pot)}</span>
+            <span class="team-pot${t.current_pot === 0 ? ' zero' : ''}" title="Aktuell pott">${fmt(t.current_pot)}</span>
           </div>`;
       }).join('')}
     `;
@@ -129,19 +143,56 @@ function renderGroups(groups) {
 function renderPlayers(players) {
   const container = document.getElementById('players-container');
   container.innerHTML = players.map(p => {
-    const betRows = p.bets.map(b => `
-      <div class="player-bet-row${b.eliminated ? ' eliminated' : ''}">
-        <span class="bet-team">${b.team_name}<span class="bet-group"> Gr.${b.group_name}</span></span>
-        <span class="bet-type-badge ${b.bet_type === 'knockout' ? 'bet-knockout' : 'bet-initial'}">${b.bet_type === 'knockout' ? 'Slutspel' : 'Grupp'}</span>
-        <span class="bet-orig">${fmt(b.original_amount)}</span>
-        <span class="bet-curr">${fmt(b.current_amount)}</span>
-      </div>`).join('');
+    const betRows = p.bets.map(b => {
+      const diff = b.current_amount - b.original_amount;
+      const diffHtml = Math.abs(diff) > 0.009
+        ? `<span style="font-size:11px;font-weight:700;color:${diff > 0 ? 'var(--green)' : 'var(--red)'};
+                        min-width:52px;text-align:right;white-space:nowrap">
+             ${diff > 0 ? '+' : ''}${fmt(diff)}
+           </span>`
+        : `<span style="min-width:52px"></span>`;
+
+      const statusBadge = b.eliminated
+        ? `<span style="font-size:10px;background:#450a0a;color:#fca5a5;
+                        padding:1px 5px;border-radius:3px;margin-left:4px;white-space:nowrap">
+             Utslaget
+           </span>`
+        : b.advanced_to_knockouts
+          ? `<span style="font-size:10px;background:#064e3b;color:#6ee7b7;
+                          padding:1px 5px;border-radius:3px;margin-left:4px;white-space:nowrap">
+               Vidare ✓
+             </span>`
+          : '';
+
+      return `
+        <div class="player-bet-row${b.eliminated ? ' eliminated' : ''}">
+          <span class="bet-team">
+            ${b.team_name}${statusBadge}<span class="bet-group"> Gr.${b.group_name}</span>
+          </span>
+          <span class="bet-type-badge ${b.bet_type === 'knockout' ? 'bet-knockout' : 'bet-initial'}">
+            ${b.bet_type === 'knockout' ? 'Slutspel' : 'Grupp'}
+          </span>
+          <span class="bet-orig" title="Ursprunglig satsning">${fmt(b.original_amount)}</span>
+          <span class="bet-curr" title="Aktuellt saldo">${fmt(b.current_amount)}</span>
+          ${diffHtml}
+        </div>`;
+    }).join('');
+
+    const totalDiff = p.total - p.originalTotal;
+    const totalDiffHtml = Math.abs(totalDiff) > 0.009
+      ? `<span style="font-size:12px;color:${totalDiff >= 0 ? 'var(--green)' : 'var(--red)'}">
+           ${totalDiff >= 0 ? '+' : ''}${fmt(totalDiff)}
+         </span>`
+      : '';
 
     return `
       <div class="player-card">
         <div class="player-header">
           <span class="player-name">${p.name}</span>
-          <span class="player-total">${fmt(p.total)}</span>
+          <div style="text-align:right">
+            <div class="player-total" title="Aktuellt totalsaldo">${fmt(p.total)}</div>
+            ${totalDiffHtml}
+          </div>
         </div>
         ${betRows || '<div style="padding:12px 16px;color:var(--text3)">Inga satsningar</div>'}
       </div>`;
@@ -155,12 +206,19 @@ function renderLeaderboard(players) {
   const medals = ['🥇', '🥈', '🥉'];
   document.getElementById('leaderboard-container').innerHTML = sorted.map((p, i) => {
     const teams = p.bets.filter(b => !b.eliminated && b.current_amount > 0).map(b => b.team_name).join(', ');
+    const diff  = p.total - p.originalTotal;
+    const diffHtml = Math.abs(diff) > 0.009
+      ? `<div style="font-size:11px;color:${diff >= 0 ? 'var(--green)' : 'var(--red)'}">
+           ${diff >= 0 ? '+' : ''}${fmt(diff)} vs. insats
+         </div>`
+      : '';
     return `
       <div class="lb-row">
         <div class="lb-rank${i < 3 ? ' top' + (i+1) : ''}">${i < 3 ? medals[i] : '#' + (i+1)}</div>
-        <div>
+        <div style="flex:1;min-width:0">
           <div class="lb-name">${p.name}</div>
           <div class="lb-teams">${teams || 'Alla lag utslagna'}</div>
+          ${diffHtml}
         </div>
         <div class="lb-amount">${fmt(p.total)}</div>
       </div>`;
@@ -264,13 +322,19 @@ function updateTeamGrid() {
       <div class="reg-group-header">Grupp ${g}</div>
       ${teams.map(t => {
         const alreadyBet = existingBetTeamIds.has(t.id);
+        const advBadge = t.advanced_to_knockouts && !isKnockout
+          ? '<span style="font-size:10px;background:#064e3b;color:#6ee7b7;padding:1px 5px;border-radius:3px;flex-shrink:0">✓ Vidare</span>'
+          : '';
         return `
           <label class="reg-team-row${alreadyBet ? ' already-bet' : ''}">
             <input type="checkbox" class="reg-team-cb" value="${t.id}"
               ${alreadyBet ? 'disabled checked' : ''}
               onchange="updateTotal()">
             <span class="reg-team-name">${t.name}</span>
-            ${alreadyBet ? '<span class="already-label">Redan satsat</span>' : `<span class="reg-team-pot">${fmt(t.current_pot)}</span>`}
+            ${advBadge}
+            ${alreadyBet
+              ? '<span class="already-label">Redan satsat</span>'
+              : `<span class="reg-team-pot" style="color:var(--accent);font-weight:700;font-size:12px">${fmt(t.current_pot)}</span>`}
           </label>`;
       }).join('')}
     `).join('');

@@ -2,12 +2,12 @@ const express = require('express');
 const router = express.Router();
 const { db, withTransaction } = require('../database');
 
-// Alla lag grupperade med aktuellt satsningsbelopp
+// Alla lag grupperade med aktuellt satsningsbelopp + väntande pool per grupp
 router.get('/groups', (req, res) => {
   const groups = ['A','B','C','D','E','F','G','H','I','J','K','L'];
   const result = {};
   for (const g of groups) {
-    result[g] = db.prepare(`
+    const teams = db.prepare(`
       SELECT t.id, t.name, t.group_name, t.eliminated, t.advanced_to_knockouts,
              COALESCE(SUM(b.current_amount), 0) AS current_pot,
              COALESCE(SUM(b.original_amount), 0) AS original_pot,
@@ -18,6 +18,10 @@ router.get('/groups', (req, res) => {
       GROUP BY t.id
       ORDER BY t.id
     `).all(g);
+    const pendingPool = Number(
+      db.prepare("SELECT value FROM settings WHERE key = ?").get(`group_${g}_pending`)?.value || 0
+    );
+    result[g] = { teams, pendingPool };
   }
   res.json(result);
 });
@@ -69,16 +73,19 @@ router.get('/summary', (req, res) => {
            COUNT(DISTINCT player_id) AS num_players
     FROM bets
   `).get();
-  const teamsLeft  = db.prepare('SELECT COUNT(*) AS c FROM teams WHERE eliminated = 0').get();
-  const groupsDone = db.prepare("SELECT COUNT(*) AS c FROM settings WHERE key LIKE 'group_%_processed'").get();
-  const lastMatch  = db.prepare('SELECT round FROM matches WHERE winner_id IS NOT NULL ORDER BY played_at DESC LIMIT 1').get();
+  // Pengar som väntar i grupp-pooler (utslagna men ej fördelade ännu)
+  const pendingRow = db.prepare(
+    "SELECT COALESCE(SUM(CAST(value AS REAL)), 0) AS total FROM settings WHERE key LIKE 'group_%_pending'"
+  ).get();
+  const teamsLeft   = db.prepare('SELECT COUNT(*) AS c FROM teams WHERE eliminated = 0').get();
+  const lastMatch   = db.prepare('SELECT round FROM matches WHERE winner_id IS NOT NULL ORDER BY played_at DESC LIMIT 1').get();
   const hasAdvanced = db.prepare('SELECT COUNT(*) AS c FROM teams WHERE advanced_to_knockouts = 1').get();
   const groupBetsOpen    = db.prepare("SELECT value FROM settings WHERE key = 'group_bets_open'").get();
   const knockoutBetsOpen = db.prepare("SELECT value FROM settings WHERE key = 'knockout_bets_open'").get();
   res.json({
     ...totals,
+    total_pot: totals.total_pot + pendingRow.total, // inkludera väntande pooler
     teams_remaining: teamsLeft.c,
-    groups_processed: groupsDone.c,
     last_round: lastMatch?.round || null,
     knockout_betting_open: hasAdvanced.c > 0,
     group_bets_open:    groupBetsOpen?.value === 'true',
