@@ -3,7 +3,7 @@ const router = express.Router();
 const { db, withTransaction } = require('../database');
 const { processPartialGroupResults, processKnockoutMatch } = require('../redistribution');
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'vm2026';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '16årpåÖstgötatrafiken';
 
 // Hämtar satsningsbelopp från DB (med fallback på standardvärden)
 function getBetAmounts() {

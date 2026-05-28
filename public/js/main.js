@@ -473,6 +473,9 @@ async function submitRegistration() {
   const name = document.getElementById('reg-name').value.trim();
   if (!name) return showRegAlert('Ange ditt namn.');
 
+  const password = document.getElementById('reg-password').value;
+  if (!password) return showRegAlert('Ange lösenordet.');
+
   const checkedBoxes = document.querySelectorAll('.reg-team-cb:checked:not(:disabled)');
   const teamIds = [...checkedBoxes].map(c => Number(c.value));
   if (!teamIds.length) return showRegAlert('Välj minst ett lag.');
@@ -481,7 +484,7 @@ async function submitRegistration() {
     const r = await fetch('/api/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, team_ids: teamIds, bet_type: currentBetType }),
+      body: JSON.stringify({ name, team_ids: teamIds, bet_type: currentBetType, password }),
     });
     const data = await r.json();
     if (!r.ok) return showRegAlert(data.error || 'Okänt fel.');
@@ -533,6 +536,7 @@ function resetRegistration() {
   document.getElementById('reg-form-section').style.display = '';
   document.getElementById('swish-confirmation').style.display = 'none';
   document.getElementById('reg-name').value = '';
+  document.getElementById('reg-password').value = '';
   document.getElementById('reg-alert').innerHTML = '';
   existingBetTeamIds = new Set();
   document.querySelectorAll('.reg-team-cb:not(:disabled)').forEach(c => c.checked = false);

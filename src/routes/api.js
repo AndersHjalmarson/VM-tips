@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { db, withTransaction } = require('../database');
 
+const PARTICIPATION_PASSWORD = 'trafikomlopp';
+
 // Alla lag grupperade med aktuellt satsningsbelopp + väntande pool per grupp
 router.get('/groups', (req, res) => {
   const groups = ['A','B','C','D','E','F','G','H','I','J','K','L'];
@@ -112,7 +114,11 @@ router.get('/matches', (req, res) => {
 
 // Självregistrering: spelare lägger in egna satsningar
 router.post('/register', (req, res) => {
-  const { name, team_ids, bet_type } = req.body;
+  const { name, team_ids, bet_type, password } = req.body;
+
+  if (password !== PARTICIPATION_PASSWORD) {
+    return res.status(403).json({ error: 'Fel lösenord — spelet är bara öppet för anställda på Östgötarafiken.' });
+  }
 
   if (!name?.trim()) return res.status(400).json({ error: 'Namn krävs' });
   if (!Array.isArray(team_ids) || team_ids.length === 0) return res.status(400).json({ error: 'Välj minst ett lag' });
