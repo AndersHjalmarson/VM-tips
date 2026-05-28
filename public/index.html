@@ -224,7 +224,12 @@
 
   <!-- Tab: Topplistan -->
   <div id="tab-leaderboard" class="tab-panel">
+    <div style="display:flex;gap:6px;margin-bottom:16px">
+      <button class="lb-toggle-btn active" id="lb-btn-players" onclick="setLeaderboardView('players')">👤 Per spelare</button>
+      <button class="lb-toggle-btn" id="lb-btn-teams" onclick="setLeaderboardView('teams')">⚽ Per lag</button>
+    </div>
     <div id="leaderboard-container" class="leaderboard"></div>
+    <div id="leaderboard-teams-container" style="display:none"></div>
   </div>
 
   <!-- Tab: Matcher -->

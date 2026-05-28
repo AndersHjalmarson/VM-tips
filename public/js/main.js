@@ -10,6 +10,7 @@ let allTeams = [];       // platt lista för registreringsformuläret
 let currentBetType = 'initial';
 let existingBetTeamIds = new Set(); // lag spelaren redan satsat på
 let lastSummary = null;  // cache för att kunna uppdatera knappstate vid typbyte
+let leaderboardView = 'players'; // 'players' | 'teams'
 
 // ── Tabs ──────────────────────────────────────────
 
@@ -56,6 +57,7 @@ async function fetchAll() {
     renderGroups(groups);
     renderPlayers(players);
     renderLeaderboard(players);
+    renderTeamLeaderboard();
     renderMatches(matches);
     updateAmountDisplays();    // uppdatera beloppsvisningar (kr-etiketter)
     updateTeamGrid();          // uppdatera registreringsformuläret med aktuella potter
@@ -243,6 +245,86 @@ function renderLeaderboard(players) {
         <div class="lb-amount">${fmt(p.total)}</div>
       </div>`;
   }).join('');
+}
+
+// ── Vy: Topplista-toggle ──────────────────────────
+
+function setLeaderboardView(view) {
+  leaderboardView = view;
+  document.getElementById('lb-btn-players').classList.toggle('active', view === 'players');
+  document.getElementById('lb-btn-teams').classList.toggle('active', view === 'teams');
+  document.getElementById('leaderboard-container').style.display        = view === 'players' ? '' : 'none';
+  document.getElementById('leaderboard-teams-container').style.display  = view === 'teams'   ? '' : 'none';
+}
+
+// ── Vy: Topplista per lag ─────────────────────────
+
+function renderTeamLeaderboard() {
+  const container = document.getElementById('leaderboard-teams-container');
+  if (!container) return;
+
+  // Dela upp i aktiva (inkl. vidare) och utslagna
+  const active    = [...allTeams].filter(t => !t.eliminated).sort((a, b) => b.current_pot - a.current_pot);
+  const eliminated = [...allTeams].filter(t => t.eliminated).sort((a, b) => b.original_pot - a.original_pot);
+
+  const medals = ['🥇', '🥈', '🥉'];
+
+  const activeRows = active.map((t, i) => {
+    const diff = t.current_pot - t.original_pot;
+    const diffHtml = Math.abs(diff) > 0.009
+      ? `<div style="font-size:11px;color:${diff >= 0 ? 'var(--green)' : 'var(--red)'}">
+           ${diff >= 0 ? '+' : ''}${fmt(diff)} vs. insats
+         </div>`
+      : '';
+    const statusBadge = t.advanced_to_knockouts
+      ? '<span class="team-status status-advanced" style="font-size:10px;margin-left:0">Vidare ✓</span>'
+      : '<span class="team-status status-active" style="font-size:10px;margin-left:0">Aktiv</span>';
+    return `
+      <div class="lb-row">
+        <div class="lb-rank${i < 3 ? ' top'+(i+1) : ''}">${i < 3 ? medals[i] : '#'+(i+1)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="lb-name">${t.name}</span>
+            <span style="font-size:11px;color:var(--text3);background:var(--bg2);padding:1px 6px;border-radius:4px;font-weight:700">Gr.${t.group_name}</span>
+            ${statusBadge}
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">👤 ${t.num_bettors} satsare · ${fmt(t.original_pot)} i insats</div>
+          ${diffHtml}
+        </div>
+        <div class="lb-amount">${fmt(t.current_pot)}</div>
+      </div>`;
+  }).join('');
+
+  let eliminatedSection = '';
+  if (eliminated.length) {
+    const elimRows = eliminated.map(t => `
+      <div class="lb-row" style="opacity:0.45">
+        <div class="lb-rank" style="font-size:16px">💀</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:15px;font-weight:600;text-decoration:line-through;color:var(--text2)">${t.name}</span>
+            <span style="font-size:11px;color:var(--text3);background:var(--bg2);padding:1px 6px;border-radius:4px;font-weight:700">Gr.${t.group_name}</span>
+            <span class="team-status status-eliminated" style="font-size:10px;margin-left:0">Utslaget</span>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px">👤 ${t.num_bettors} satsare · ${fmt(t.original_pot)} i insats</div>
+        </div>
+        <div style="font-size:16px;font-weight:700;color:var(--text3)">${fmt(t.current_pot)}</div>
+      </div>`).join('');
+    eliminatedSection = `
+      <details style="margin-top:16px">
+        <summary style="font-size:13px;color:var(--text3);cursor:pointer;padding:8px 4px;font-weight:600;user-select:none">
+          Utslagna lag (${eliminated.length}) — klicka för att visa
+        </summary>
+        <div style="margin-top:8px">${elimRows}</div>
+      </details>`;
+  }
+
+  if (!active.length && !eliminated.length) {
+    container.innerHTML = '<p style="color:var(--text3)">Inga lag ännu.</p>';
+    return;
+  }
+
+  container.innerHTML = `<div style="max-width:700px">${activeRows || '<p style="color:var(--text3);margin-bottom:12px">Inga aktiva lag.</p>'}${eliminatedSection}</div>`;
 }
 
 // ── Vy: Matcher ───────────────────────────────────
