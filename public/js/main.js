@@ -9,6 +9,7 @@ let playersData = [];
 let allTeams = [];       // platt lista för registreringsformuläret
 let currentBetType = 'initial';
 let existingBetTeamIds = new Set(); // lag spelaren redan satsat på
+let lastSummary = null;  // cache för att kunna uppdatera knappstate vid typbyte
 
 // ── Tabs ──────────────────────────────────────────
 
@@ -50,6 +51,7 @@ async function fetchAll() {
     // Bygg platt lag-lista (stöder både gammalt array-format och nytt {teams, pendingPool})
     allTeams = Object.values(groups).flatMap(g => Array.isArray(g) ? g : (g.teams || []));
 
+    lastSummary = summary;
     renderStats(summary);
     renderGroups(groups);
     renderPlayers(players);
@@ -264,8 +266,15 @@ function renderRegClosedBanners(summary) {
   const existing = document.getElementById('reg-closed-banner');
   if (existing) existing.remove();
 
-  const isInitial  = currentBetType === 'initial';
-  const isClosed   = isInitial ? !summary.group_bets_open : !summary.knockout_bets_open;
+  const isInitial = currentBetType === 'initial';
+  const isClosed  = isInitial ? !summary.group_bets_open : !summary.knockout_bets_open;
+
+  // Sätt alltid knappens state — annars aktiveras aldrig knappen om den
+  // tidigare inaktiverats (t.ex. när gruppsatsningar var stängda och
+  // användaren byter till öppna slutspelssatsningar).
+  const submitBtn = document.querySelector('#reg-form-section .btn-primary');
+  if (submitBtn) submitBtn.disabled = isClosed;
+
   if (!isClosed) return;
 
   const label = isInitial ? 'Gruppsatsningar' : 'Slutspelssatsningar';
@@ -277,10 +286,6 @@ function renderRegClosedBanners(summary) {
 
   const formSection = document.getElementById('reg-form-section');
   formSection.insertBefore(banner, formSection.firstChild);
-
-  // Inaktivera submit-knappen
-  const submitBtn = document.querySelector('#reg-form-section .btn-primary');
-  if (submitBtn) submitBtn.disabled = isClosed;
 }
 
 // ── Registreringsformulär ─────────────────────────
@@ -290,6 +295,8 @@ function setBetType(type) {
   document.querySelectorAll('.bet-type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
   existingBetTeamIds = new Set(); // rensa vid typbyte
   updateTeamGrid();
+  // Uppdatera knappens disabled-state direkt (inte vänta på nästa 30s-poll)
+  if (lastSummary) renderRegClosedBanners(lastSummary);
 }
 
 function updateTeamGrid() {
