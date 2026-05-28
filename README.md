@@ -1,4 +1,4 @@
-# VM-poolen 2026 ⚽
+# VM-tipset 2026 ⚽
 
 Intern satsningspool för Fotbolls-VM 2026 (USA/Kanada/Mexiko, 11 juni – 19 juli).
 

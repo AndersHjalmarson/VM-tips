@@ -170,7 +170,7 @@ router.post('/register', (req, res) => {
       recipient: 'Anders Hjalmarson',
       number: '0708-883225',
       amount: amountDue,
-      message: `VM-poolen 2026 - ${name.trim()}`,
+      message: `VM-tipset 2026 - ${name.trim()}`,
     } : null,
   });
 });

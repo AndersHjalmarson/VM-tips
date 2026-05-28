@@ -18,6 +18,6 @@ app.get('/admin', (req, res) => {
 initializeDatabase();
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`VM-poolen 2026 körs på http://0.0.0.0:${PORT}`);
+  console.log(`VM-tipset 2026 körs på http://0.0.0.0:${PORT}`);
   console.log(`Admin-panel: http://localhost:${PORT}/admin`);
 });

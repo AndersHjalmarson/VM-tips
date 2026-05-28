@@ -1,4 +1,4 @@
-# VM-poolen 2026 — Projektkontext för Claude
+# VM-tipset 2026 — Projektkontext för Claude
 
 ## Vad är det här?
 
