@@ -82,14 +82,18 @@ router.get('/summary', (req, res) => {
   const hasAdvanced = db.prepare('SELECT COUNT(*) AS c FROM teams WHERE advanced_to_knockouts = 1').get();
   const groupBetsOpen    = db.prepare("SELECT value FROM settings WHERE key = 'group_bets_open'").get();
   const knockoutBetsOpen = db.prepare("SELECT value FROM settings WHERE key = 'knockout_bets_open'").get();
+  const groupBetAmount   = Number(db.prepare("SELECT value FROM settings WHERE key = 'group_bet_amount'").get()?.value || 20);
+  const knockoutBetAmount = Number(db.prepare("SELECT value FROM settings WHERE key = 'knockout_bet_amount'").get()?.value || 50);
   res.json({
     ...totals,
     total_pot: totals.total_pot + pendingRow.total, // inkludera väntande pooler
     teams_remaining: teamsLeft.c,
     last_round: lastMatch?.round || null,
     knockout_betting_open: hasAdvanced.c > 0,
-    group_bets_open:    groupBetsOpen?.value === 'true',
-    knockout_bets_open: knockoutBetsOpen?.value === 'true',
+    group_bets_open:       groupBetsOpen?.value === 'true',
+    knockout_bets_open:    knockoutBetsOpen?.value === 'true',
+    group_bet_amount:      groupBetAmount,
+    knockout_bet_amount:   knockoutBetAmount,
   });
 });
 
@@ -113,8 +117,10 @@ router.post('/register', (req, res) => {
   if (!name?.trim()) return res.status(400).json({ error: 'Namn krävs' });
   if (!Array.isArray(team_ids) || team_ids.length === 0) return res.status(400).json({ error: 'Välj minst ett lag' });
 
-  const type   = bet_type || 'initial';
-  const amount = type === 'knockout' ? 50 : 20;
+  const type  = bet_type || 'initial';
+  const groupAmt   = Number(db.prepare("SELECT value FROM settings WHERE key = 'group_bet_amount'").get()?.value || 20);
+  const knockoutAmt = Number(db.prepare("SELECT value FROM settings WHERE key = 'knockout_bet_amount'").get()?.value || 50);
+  const amount = type === 'knockout' ? knockoutAmt : groupAmt;
 
   // Kontrollera om satsningar är öppna
   const settingKey = type === 'knockout' ? 'knockout_bets_open' : 'group_bets_open';

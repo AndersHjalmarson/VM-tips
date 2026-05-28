@@ -78,13 +78,13 @@ function showPanel(name) {
   if (name === 'bets')          { loadBets(); updateTeamList(); }
   if (name === 'group-results') loadGroupResults();
   if (name === 'matches')       loadMatches();
-  if (name === 'registration')  loadRegistrationStatus();
+  if (name === 'registration')  { loadRegistrationStatus(); loadBetAmounts(); }
 }
 
 // --- Load all ---
 
 async function loadAll() {
-  await Promise.all([loadPlayers(), loadTeams()]);
+  await Promise.all([loadPlayers(), loadTeams(), loadBetAmounts()]);
   loadBets();
 }
 
@@ -516,6 +516,40 @@ async function toggleBets(type) {
     regStatus[key] = !currentlyOpen;
     renderRegStatus();
     showAlert('registration-alert', `${currentlyOpen ? 'Stängde' : 'Öppnade'} ${label}.`, currentlyOpen ? 'error' : 'success');
+  } catch (e) {
+    showAlert('registration-alert', e.message, 'error');
+  }
+}
+
+// --- Satsningsbelopp ---
+
+async function loadBetAmounts() {
+  let amounts;
+  try { amounts = await api('/bet-amounts'); } catch { return; }
+  const gi = document.getElementById('input-group-bet-amount');
+  const ki = document.getElementById('input-knockout-bet-amount');
+  if (gi) gi.value = amounts.group;
+  if (ki) ki.value = amounts.knockout;
+  _updateBetAmountLabels(amounts.group, amounts.knockout);
+}
+
+function _updateBetAmountLabels(group, knockout) {
+  const sel = document.getElementById('bet-type-select');
+  if (!sel) return;
+  if (sel.options[0]) sel.options[0].text = `Initialsatsning (${group} kr/lag)`;
+  if (sel.options[1]) sel.options[1].text = `Slutspelssatsning (${knockout} kr/lag)`;
+}
+
+async function saveBetAmounts() {
+  const g = Number(document.getElementById('input-group-bet-amount')?.value);
+  const k = Number(document.getElementById('input-knockout-bet-amount')?.value);
+  if (!g || g <= 0 || !k || k <= 0) {
+    return showAlert('registration-alert', 'Ange giltiga belopp (heltal > 0)', 'error');
+  }
+  try {
+    await api('/bet-amounts', 'POST', { group_bet_amount: g, knockout_bet_amount: k });
+    showAlert('registration-alert', `Sparat: gruppsatsning ${g} kr/lag · slutspelssatsning ${k} kr/lag`);
+    _updateBetAmountLabels(g, k);
   } catch (e) {
     showAlert('registration-alert', e.message, 'error');
   }

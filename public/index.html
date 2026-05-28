@@ -38,12 +38,12 @@
         <summary>Så här fungerar det — klicka för att läsa reglerna</summary>
         <div class="rules-body">
           <div class="rule-section">
-            <h4>Gruppsatsning — 20 kr per lag</h4>
-            <p>Du satsar 20 kr på ett eller flera lag i gruppspelet. Du kan satsa på hur många lag du vill — varje lag kostar 20 kr.</p>
+            <h4>Gruppsatsning — <span data-amount-key="group_bet_amount" data-format="kr">20 kr</span> per lag</h4>
+            <p>Du satsar <span data-amount-key="group_bet_amount" data-format="kr">20 kr</span> på ett eller flera lag i gruppspelet. Du kan satsa på hur många lag du vill — varje lag kostar <span data-amount-key="group_bet_amount" data-format="kr">20 kr</span>.</p>
           </div>
           <div class="rule-section">
-            <h4>Slutspelssatsning — 50 kr per lag</h4>
-            <p>När gruppspelet är klart kan du dessutom satsa 50 kr på varje lag som gått vidare till slutspelet.</p>
+            <h4>Slutspelssatsning — <span data-amount-key="knockout_bet_amount" data-format="kr">50 kr</span> per lag</h4>
+            <p>När gruppspelet är klart kan du dessutom satsa <span data-amount-key="knockout_bet_amount" data-format="kr">50 kr</span> på varje lag som gått vidare till slutspelet.</p>
           </div>
           <div class="rule-section">
             <h4>Hur rör sig pengarna?</h4>
@@ -77,7 +77,7 @@
         <div class="tactic-card">
           <div class="tactic-icon">🛡️</div>
           <h4>Den trygga gruppstrategin</h4>
-          <p>Satsa på de två lagen i varje grupp som du tror tar sig vidare. Du missar risken att bli av med dina 20 kr direkt, och pengarna från de utslagnas satsningar hamnar hos dig — utan att du ens behöver göra rätt på slutspelet.</p>
+          <p>Satsa på de två lagen i varje grupp som du tror tar sig vidare. Du missar risken att bli av med dina <span data-amount-key="group_bet_amount" data-format="kr">20 kr</span> direkt, och pengarna från de utslagnas satsningar hamnar hos dig — utan att du ens behöver göra rätt på slutspelet.</p>
         </div>
 
         <div class="tactic-card">
@@ -107,7 +107,7 @@
         <div class="tactic-card">
           <div class="tactic-icon">⏱️</div>
           <h4>Vänta med slutspelssatsningen</h4>
-          <p>Slutspelssatsningen (50 kr/lag) öppnar först efter gruppspelet. Då vet du exakt vilka lag som är kvar och hur mycket som satsats på dem. Lag med lite satsningar från andra ger dig en större relativ andel vid nästa omfördelning. Titta på ställningen och välj klokt.</p>
+          <p>Slutspelssatsningen (<span data-amount-key="knockout_bet_amount" data-format="kr/lag">50 kr/lag</span>) öppnar först efter gruppspelet. Då vet du exakt vilka lag som är kvar och hur mycket som satsats på dem. Lag med lite satsningar från andra ger dig en större relativ andel vid nästa omfördelning. Titta på ställningen och välj klokt.</p>
         </div>
 
         <div class="tactic-card">
@@ -135,10 +135,10 @@
             <label>Typ av satsning</label>
             <div style="display:flex;gap:8px">
               <button class="bet-type-btn active" data-type="initial" onclick="setBetType('initial')">
-                Gruppsatsning <span class="bet-type-amount">20 kr/lag</span>
+                Gruppsatsning <span class="bet-type-amount" data-amount-key="group_bet_amount" data-format="kr/lag">20 kr/lag</span>
               </button>
               <button class="bet-type-btn" id="knockout-btn" data-type="knockout" onclick="setBetType('knockout')" style="display:none">
-                Slutspelssatsning <span class="bet-type-amount">50 kr/lag</span>
+                Slutspelssatsning <span class="bet-type-amount" data-amount-key="knockout_bet_amount" data-format="kr/lag">50 kr/lag</span>
               </button>
             </div>
           </div>

@@ -5,6 +5,13 @@ const { processPartialGroupResults, processKnockoutMatch } = require('../redistr
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'vm2026';
 
+// Hämtar satsningsbelopp från DB (med fallback på standardvärden)
+function getBetAmounts() {
+  const group    = Number(db.prepare("SELECT value FROM settings WHERE key = 'group_bet_amount'").get()?.value || 20);
+  const knockout = Number(db.prepare("SELECT value FROM settings WHERE key = 'knockout_bet_amount'").get()?.value || 50);
+  return { group, knockout };
+}
+
 // Autentiseringsmiddleware
 function requireAuth(req, res, next) {
   const token = req.headers['x-admin-token'] || req.query.token;
@@ -67,7 +74,8 @@ router.get('/bets', requireAuth, (req, res) => {
 // Lägg till en satsning
 router.post('/bets', requireAuth, (req, res) => {
   const { player_id, team_id, bet_type } = req.body;
-  const amount = bet_type === 'knockout' ? 50 : 20;
+  const amounts = getBetAmounts();
+  const amount = bet_type === 'knockout' ? amounts.knockout : amounts.group;
 
   if (!player_id || !team_id) return res.status(400).json({ error: 'player_id och team_id krävs' });
 
@@ -95,7 +103,8 @@ router.post('/bets', requireAuth, (req, res) => {
 // Bulk-satsning: flera lag åt gången för en spelare
 router.post('/bets/bulk', requireAuth, (req, res) => {
   const { player_id, team_ids, bet_type } = req.body;
-  const amount = bet_type === 'knockout' ? 50 : 20;
+  const amounts = getBetAmounts();
+  const amount = bet_type === 'knockout' ? amounts.knockout : amounts.group;
 
   if (!player_id || !Array.isArray(team_ids) || team_ids.length === 0) {
     return res.status(400).json({ error: 'player_id och team_ids[] krävs' });
@@ -258,6 +267,26 @@ router.post('/registration-status', requireAuth, (req, res) => {
     db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('knockout_bets_open', knockout_bets_open ? 'true' : 'false');
   }
   res.json({ ok: true });
+});
+
+// Satsningsbelopp
+router.get('/bet-amounts', requireAuth, (req, res) => {
+  res.json(getBetAmounts());
+});
+
+router.post('/bet-amounts', requireAuth, (req, res) => {
+  const { group_bet_amount, knockout_bet_amount } = req.body;
+  if (group_bet_amount !== undefined) {
+    const val = Number(group_bet_amount);
+    if (!val || val <= 0) return res.status(400).json({ error: 'Ogiltigt belopp för gruppsatsning' });
+    db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('group_bet_amount', String(val));
+  }
+  if (knockout_bet_amount !== undefined) {
+    const val = Number(knockout_bet_amount);
+    if (!val || val <= 0) return res.status(400).json({ error: 'Ogiltigt belopp för slutspelssatsning' });
+    db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run('knockout_bet_amount', String(val));
+  }
+  res.json({ ok: true, ...getBetAmounts() });
 });
 
 // Nollställ alla turneringsresultat (behåller spelare och satsningar, återställer belopp)

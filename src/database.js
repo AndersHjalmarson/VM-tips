@@ -131,6 +131,9 @@ function initializeDatabase() {
   // Standardvärden för registreringsstatus
   db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)').run('group_bets_open', 'true');
   db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)').run('knockout_bets_open', 'true');
+  // Standardvärden för satsningsbelopp
+  db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)').run('group_bet_amount', '20');
+  db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)').run('knockout_bet_amount', '50');
 }
 
 module.exports = { db, initializeDatabase, withTransaction };

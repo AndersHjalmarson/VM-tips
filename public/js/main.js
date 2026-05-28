@@ -57,7 +57,8 @@ async function fetchAll() {
     renderPlayers(players);
     renderLeaderboard(players);
     renderMatches(matches);
-    updateTeamGrid(); // uppdatera registreringsformuläret med aktuella potter
+    updateAmountDisplays();    // uppdatera beloppsvisningar (kr-etiketter)
+    updateTeamGrid();          // uppdatera registreringsformuläret med aktuella potter
 
     // Visa/dölj slutspelssatsning-knappen
     const knockoutBtn = document.getElementById('knockout-btn');
@@ -73,6 +74,23 @@ async function fetchAll() {
   } catch (e) {
     console.error('Hämtningsfel:', e);
   }
+}
+
+// ── Beloppsvisningar ──────────────────────────────
+// Uppdaterar alla element med data-amount-key-attribut från lastSummary
+
+function updateAmountDisplays() {
+  if (!lastSummary) return;
+  const map = {
+    group_bet_amount:   lastSummary.group_bet_amount   || 20,
+    knockout_bet_amount: lastSummary.knockout_bet_amount || 50,
+  };
+  document.querySelectorAll('[data-amount-key]').forEach(el => {
+    const val = map[el.dataset.amountKey];
+    if (val === undefined) return;
+    const fmt = el.dataset.format || '';
+    el.textContent = fmt ? `${val} ${fmt}` : String(val);
+  });
 }
 
 // ── Vy: Statistikrad ──────────────────────────────
@@ -356,7 +374,9 @@ function updateTeamGrid() {
 
 function updateTotal() {
   const checked = document.querySelectorAll('.reg-team-cb:checked:not(:disabled)');
-  const amount = currentBetType === 'knockout' ? 50 : 20;
+  const amount = currentBetType === 'knockout'
+    ? (lastSummary?.knockout_bet_amount || 50)
+    : (lastSummary?.group_bet_amount    || 20);
   document.getElementById('reg-count').textContent = checked.length;
   document.getElementById('reg-total').textContent = fmt(checked.length * amount);
 }
